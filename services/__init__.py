@@ -8,6 +8,7 @@ from sentence_transformers import SentenceTransformer
 from huggingface_hub import InferenceClient
 from werkzeug.utils import secure_filename
 from flask_cors import CORS
+import re
 
 app = Flask(__name__)
 load_dotenv(".env.local")
@@ -19,7 +20,8 @@ CORS(app)  # allow all origins (for dev)
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Hugging Face InferenceClient
-client = InferenceClient(token=os.getenv("HF_TOKEN"))
+client = InferenceClient(provider="hf-inference",
+                         api_key=os.getenv("HF_TOKEN"))
 
 faiss_index = None
 chunks = None
@@ -27,15 +29,17 @@ chunks = None
 
 stored_sessions = {}  # key: session_id, value: {faiss_index, chunks, file_names}
 
+
 # --------------------
 # PDF Processing Utils
 # --------------------
 def extract_text(path):
     text = ""
-    with fitz.open(path) as doc:   # this will fail if file is not a valid PDF
+    with fitz.open(path) as doc:  # this will fail if file is not a valid PDF
         for page in doc:
             text += page.get_text()
     return text
+
 
 def chunk_text(text, size=500, overlap=100):
     chunks = []
@@ -44,6 +48,7 @@ def chunk_text(text, size=500, overlap=100):
         chunks.append(text[i : i + size])
         i += size - overlap
     return chunks
+
 
 # --------------------
 # Routes
@@ -77,26 +82,21 @@ def upload_pdf():
     faiss_index.add(embeddings)
 
     # store in session
-    print(session_id)
+    print("pdf: ", session_id)
     stored_sessions[session_id] = {
         "faiss_index": faiss_index,
         "chunks": chunks,
-        "file_names": file_names
+        "file_names": file_names,
     }
 
-    return jsonify({
-        "combined_text": combined_text,
-        "file_names": file_names
-    })
+    return jsonify({"combined_text": combined_text, "file_names": file_names})
 
 
 @app.route("/ask", methods=["POST"])
 def ask():
     global stored_sessions
     session_id = request.headers.get("X-Session-ID")
-    print(session_id)
     if not session_id or session_id not in stored_sessions:
-        print("no session_id")
         return jsonify({"error": "No PDF uploaded for this session"}), 400
 
     data = request.get_json()
@@ -106,14 +106,35 @@ def ask():
     faiss_index = session["faiss_index"]
     chunks = session["chunks"]
 
+    # Retrieve top 3 relevant chunks
     q_emb = embedding_model.encode([query], convert_to_numpy=True)
     D, I = faiss_index.search(q_emb, k=3)
     context = " ".join(chunks[i] for i in I[0])
 
-    prompt = f"Context: {context}\n\nQuestion: {query}\nAnswer:"
-    resp = client.text_generation(model="google/flan-t5-base", prompt=prompt, max_new_tokens=100)
-    print("resp.generated_text")
-    return jsonify({"answer": resp.generated_text})
+    # Construct prompt for chat completion
+    messages = [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"}
+    ]
+
+    try:
+        completion = client.chat.completions.create(
+            model="HuggingFaceTB/SmolLM3-3B",
+            messages=messages,
+            max_tokens=150,
+        )
+        answer = completion.choices[0].message["content"]
+        # After getting the raw answer
+        raw_answer = completion.choices[0].message["content"]
+
+        # Remove <think> ... </think> tags and content inside
+        clean_answer = re.sub(r"<think>.*?</think>", "", raw_answer, flags=re.DOTALL).strip()
+    except Exception as e:
+        print("Error in chat completion:", e)
+        answer = "I'm having trouble generating a response right now. Please try again later."
+    
+    return jsonify({"answer": clean_answer})
+
 
 
 if __name__ == "__main__":

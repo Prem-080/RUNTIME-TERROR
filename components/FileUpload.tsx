@@ -36,7 +36,7 @@ const FileUpload: React.FC<FileUploadProps> = ({sessionId, fileNames, messages, 
       // Send PDFs to Flask backend
       const formData = new FormData();
       pdfFiles.forEach(file => formData.append("files", file));
-
+      console.log("Sending sessionID: ", sessionId);
       const response = await fetch("http://localhost:5000/upload_pdfs", {
         method: "POST",
         headers: {

@@ -96,45 +96,43 @@ const App: React.FC = () => {
 
     setSessions(prev => prev.map(s => s.id === activeSessionId ? updatedSessionWithUserMessage : s));
     
-    try {
-        // Call Flask backend instead of local function
-        const response = await fetch("http://localhost:5000/ask", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Session-ID": activeSession.id
-          },
-          body: JSON.stringify({ query: userInput })
-        });
+  try {
+    // Debug print for session ID
+    console.log("Sending /ask with sessionId:", activeSession.id);
+    const response = await fetch("http://localhost:5000/ask", {
+      method: "POST",
+      headers: {
+      "Content-Type": "application/json",
+      "X-Session-ID": activeSession.id
+      },
+      body: JSON.stringify({ query: userInput })
+    });
 
-
-        if (!response.ok) {
-          throw new Error("Backend error");
-        }
-
-        const data = await response.json();
-        const responseContent = data.answer;  // Flask should return { "answer": "..." }
-
-        const botMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', content: responseContent };
-        
-        // Update the session with the bot's response
-        setSessions(prev => prev.map(s => {
-            if (s.id === activeSessionId) {
-                return { ...s, messages: [...s.messages, botMessage] };
-            }
-            return s;
-        }));
-    } catch (error) {
-        const errorMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', content: "I'm having trouble connecting right now. Please try again later." };
-        
-        // Update the session with the error message
-        setSessions(prev => prev.map(s => {
-            if (s.id === activeSessionId) {
-                return { ...s, messages: [...s.messages, errorMessage] };
-            }
-            return s;
-        }));
+    if (!response.ok) {
+      throw new Error("Backend error");
     }
+
+    const data = await response.json();
+    const responseContent = data.answer;  // Flask should return { "answer": "..." }
+
+    const botMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', content: responseContent };
+    // Update the session with the bot's response
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        return { ...s, messages: [...s.messages, botMessage] };
+      }
+      return s;
+    }));
+  } catch (error) {
+    const errorMessage: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', content: "I'm having trouble connecting right now. Please try again later." };
+    // Update the session with the error message
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        return { ...s, messages: [...s.messages, errorMessage] };
+      }
+      return s;
+    }));
+  }
   }, [activeSession, activeSessionId]);
 
   const handleNewSession = () => {
@@ -165,6 +163,8 @@ const App: React.FC = () => {
 
   const handleFileProcessed = (content: string, names: string[]) => {
     if (!activeSession) return;
+    // Debug print for session ID
+    console.log("Uploading PDF with sessionId:", activeSession.id);
     const isFresh = activeSession.messages.length <= 1 && (!activeSession.fileNames || activeSession.fileNames.length === 0);
     const newTitle = names.join(', ');
     if (isFresh) {
@@ -177,6 +177,8 @@ const App: React.FC = () => {
       const newSession = createNewSession(newTitle, content, names);
       setSessions(prev => [newSession, ...prev]);
       setActiveSessionId(newSession.id);
+      // Debug print for new session
+      console.log("Created new session with sessionId:", newSession.id);
     }
   };
 
