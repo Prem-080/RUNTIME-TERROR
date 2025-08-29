@@ -20,8 +20,7 @@ CORS(app)  # allow all origins (for dev)
 embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 # Hugging Face InferenceClient
-client = InferenceClient(provider="hf-inference",
-                         api_key=os.getenv("HF_TOKEN"))
+client = InferenceClient(provider="together", api_key=os.getenv("HF_TOKEN"))
 
 faiss_index = None
 chunks = None
@@ -113,15 +112,23 @@ def ask():
 
     # Construct prompt for chat completion
     messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"}
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful assistant. "
+                "Always answer directly and concisely. "
+                "Do NOT include any <think> tags or internal reasoning text in your output. "
+                "Provide a brief, clear answer."
+            ),
+        },
+        {"role": "user", "content": f"Context: {context}\n\nQuestion: {query}"},
     ]
 
     try:
         completion = client.chat.completions.create(
-            model="HuggingFaceTB/SmolLM3-3B",
+            model="openai/gpt-oss-20b",
             messages=messages,
-            max_tokens=150,
+            max_tokens=256,
         )
         answer = completion.choices[0].message["content"]
         # After getting the raw answer
@@ -132,9 +139,8 @@ def ask():
     except Exception as e:
         print("Error in chat completion:", e)
         answer = "I'm having trouble generating a response right now. Please try again later."
-    
-    return jsonify({"answer": clean_answer})
 
+    return jsonify({"answer": clean_answer})
 
 
 if __name__ == "__main__":
