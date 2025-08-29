@@ -1,5 +1,5 @@
 {
-  "name": "studymate-q&a-ai",
+  "name": "studymate-qa-ai",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,9 +10,7 @@
   },
   "dependencies": {
     "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "@google/genai": "^1.16.0",
-    "pdfjs-dist": "4.4.168"
+    "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
