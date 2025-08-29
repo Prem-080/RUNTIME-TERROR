@@ -1,10 +1,9 @@
 flask
-torch
-transformers
-langchain
-langchain-community
-langchain-huggingface
-langchain-text-splitters
-sentence-transformers
+python-dotenv
+pymupdf
 faiss-cpu
-pypdf
+numpy
+sentence-transformers
+huggingface_hub
+flask-cors
+werkzeug
