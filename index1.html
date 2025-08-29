@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyMate - AI Academic Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #10b981;
+            --accent: #8b5cf6;
+            --light: #f8fafc;
+            --dark: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .document-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .chat-message {
+            max-width: 80%;
+        }
+
+        .loading-dots {
+            display: inline-block;
+        }
+
+        .loading-dots:after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+
+            0%,
+            20% {
+                content: '.';
+            }
+
+            40% {
+                content: '..';
+            }
+
+            60%,
+            100% {
+                content: '...';
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(-20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-6xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-white mb-2">StudyMate</h1>
+            <p class="text-lg text-white opacity-90">Your AI-powered academic assistant for smarter learning</p>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div class="grid md:grid-cols-2 h-screen max-h-96">
+                <!-- Left Panel - Document Upload & Management -->
+                <div class="bg-gray-50 p-6 border-r border-gray-200">
+                    <div class="flex items-center mb-6">
+                        <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                                </path>
+                            </svg>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800">Study Materials</h2>
+                    </div>
+
+                    <!-- File Upload -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Upload PDF Documents</label>
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:border-indigo-400 transition-colors"
+                            id="dropZone">
+                            <input type="file" id="fileInput" class="hidden" accept=".pdf" multiple>
+                            <div class="space-y-2">
+                                <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                                    </path>
+                                </svg>
+                                <p class="text-sm text-gray-600">Drop PDF files here or click to browse</p>
+                                <p class="text-xs text-gray-500">Maximum 5 files, 10MB each</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Uploaded Documents -->
+                    <div class="mb-4">
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Uploaded Documents</h3>
+                        <div id="documentList" class="space-y-2 max-h-32 overflow-y-auto">
+                            <div class="text-center text-gray-500 text-sm py-4" id="noDocuments">
+                                No documents uploaded yet
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Processing Status -->
+                    <div id="processingStatus" class="hidden">
+                        <div class="flex items-center space-x-2 text-sm text-indigo-600">
+                            <div
+                                class="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin">
+                            </div>
+                            <span>Processing documents...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel - Chat Interface -->
+                <div class="bg-white p-6 flex flex-col">
+                    <div class="flex items-center mb-6">
+                        <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z">
+                                </path>
+                            </svg>
+                        </div>
+                        <h2 class="text-xl font-semibold text-gray-800">Ask Questions</h2>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div id="chatMessages" class="flex-1 overflow-y-auto space-y-4 mb-4 max-h-48">
+                        <div class="chat-message bg-blue-50 rounded-lg p-4 ml-auto slide-in">
+                            <p class="text-sm text-gray-700">Hi! I'm StudyMate. Upload your study materials and ask me
+                                anything about them!</p>
+                        </div>
+                    </div>
+
+                    <!-- Question Input -->
+                    <div class="border-t border-gray-200 pt-4">
+                        <div class="relative">
+                            <input type="text" id="questionInput"
+                                placeholder="Ask a question about your study materials..."
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-12"
+                                disabled>
+                            <button id="sendButton"
+                                class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                disabled>
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 5l7 7-7 7M5 5l7 7-7 7"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">Press Enter to send your question</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="grid md:grid-cols-3 gap-6 mt-8">
+            <div class="glass-effect rounded-xl p-6 text-white">
+                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold mb-2">Multi-PDF Support</h3>
+                <p class="text-sm opacity-90">Upload multiple textbooks, notes, and research papers for comprehensive
+                    analysis</p>
+            </div>
+
+            <div class="glass-effect rounded-xl p-6 text-white">
+                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                        </path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold mb-2">Smart Q&A</h3>
+                <p class="text-sm opacity-90">Ask natural language questions and get contextual answers from your
+                    materials</p>
+            </div>
+
+            <div class="glass-effect rounded-xl p-6 text-white">
+                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-lg flex items-center justify-center mb-4">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                </div>
+                <h3 class="font-semibold mb-2">Instant Access</h3>
+                <p class="text-sm opacity-90">Quickly find information without manually searching through lengthy
+                    documents</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize PDF.js
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        let uploadedDocuments = [];
+        let extractedTexts = [];
+
+        // DOM Elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const documentList = document.getElementById('documentList');
+        const noDocuments = document.getElementById('noDocuments');
+        const processingStatus = document.getElementById('processingStatus');
+        const questionInput = document.getElementById('questionInput');
+        const sendButton = document.getElementById('sendButton');
+        const chatMessages = document.getElementById('chatMessages');
+
+        // Event Listeners
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        sendButton.addEventListener('click', handleSendQuestion);
+        questionInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleSendQuestion();
+        });
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-400', 'bg-indigo-50');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-400', 'bg-indigo-50');
+
+            const files = Array.from(e.dataTransfer.files).filter(file =>
+                file.type === 'application/pdf'
+            );
+
+            if (files.length > 0) {
+                processFiles(files);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = Array.from(e.target.files).filter(file =>
+                file.type === 'application/pdf'
+            );
+
+            if (files.length > 0) {
+                processFiles(files);
+            }
+        }
+
+        async function processFiles(files) {
+            if (uploadedDocuments.length + files.length > 5) {
+                alert('Maximum 5 documents allowed');
+                return;
+            }
+
+            processingStatus.classList.remove('hidden');
+
+            for (const file of files) {
+                if (uploadedDocuments.some(doc => doc.name === file.name)) {
+                    continue; // Skip duplicates
+                }
+
+                const documentItem = createDocumentItem(file);
+                documentList.appendChild(documentItem);
+                noDocuments.style.display = 'none';
+
+                uploadedDocuments.push(file);
+
+                try {
+                    const text = await extractTextFromPDF(file);
+                    extractedTexts.push({
+                        name: file.name,
+                        text: text,
+                        chunks: splitTextIntoChunks(text)
+                    });
+
+                    documentItem.querySelector('.status').textContent = '✅ Processed';
+                } catch (error) {
+                    documentItem.querySelector('.status').textContent = '❌ Error';
+                    console.error('Error processing PDF:', error);
+                }
+            }
+
+            processingStatus.classList.add('hidden');
+
+            // Enable question input if we have processed documents
+            if (extractedTexts.length > 0) {
+                questionInput.disabled = false;
+                sendButton.disabled = false;
+                questionInput.placeholder = "Ask a question about your study materials...";
+
+                addChatMessage('system', `I've processed ${extractedTexts.length} document(s). You can now ask me questions!`);
+            }
+        }
+
+        function createDocumentItem(file) {
+            const div = document.createElement('div');
+            div.className = 'document-card flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200 transition-all';
+            div.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-indigo-100 rounded flex items-center justify-center">
+                        <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">${file.name}</p>
+                        <p class="text-xs text-gray-500">${(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                    </div>
+                </div>
+                <div class="status text-xs text-gray-500">Processing...</div>
+            `;
+            return div;
+        }
+
+        async function extractTextFromPDF(file) {
+            return new Promise((resolve, reject) => {
+                const fileReader = new FileReader();
+
+                fileReader.onload = async function (event) {
+                    try {
+                        const arrayBuffer = event.target.result;
+                        const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                        let fullText = '';
+
+                        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                            const page = await pdf.getPage(pageNum);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            fullText += pageText + '\n';
+                        }
+
+                        resolve(fullText);
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+
+                fileReader.onerror = reject;
+                fileReader.readAsArrayBuffer(file);
+            });
+        }
+
+        function splitTextIntoChunks(text, maxChunkSize = 1000, overlap = 200) {
+            const chunks = [];
+            let start = 0;
+            const textLength = text.length;
+
+            while (start < textLength) {
+                let end = Math.min(start + maxChunkSize, textLength);
+
+                // Try to end at a sentence boundary
+                if (end < textLength) {
+                    const lastPeriod = text.lastIndexOf('.', end);
+                    const lastSpace = text.lastIndexOf(' ', end);
+
+                    if (lastPeriod > start + maxChunkSize * 0.5) {
+                        end = lastPeriod + 1;
+                    } else if (lastSpace > start + maxChunkSize * 0.8) {
+                        end = lastSpace;
+                    }
+                }
+
+                const chunk = text.substring(start, end).trim();
+                if (chunk.length > 50) { // Skip very small chunks
+                    chunks.push(chunk);
+                }
+
+                start = end - overlap;
+                if (start < 0) start = 0;
+            }
+
+            return chunks;
+        }
+
+        function handleSendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question || extractedTexts.length === 0) return;
+
+            // Add user question to chat
+            addChatMessage('user', question);
+            questionInput.value = '';
+
+            // Show thinking indicator
+            const thinkingMsg = addChatMessage('system', 'Thinking<span class="loading-dots"></span>');
+
+            // Simulate AI processing (in real implementation, this would call an API)
+            setTimeout(() => {
+                const answer = generateAnswer(question);
+                chatMessages.removeChild(thinkingMsg);
+                addChatMessage('system', answer);
+            }, 1500);
+        }
+
+        function generateAnswer(question) {
+            // This is a simplified simulation - in a real implementation, you'd use:
+            // 1. Semantic search to find relevant chunks
+            // 2. Call an AI API with the relevant context
+            // 3. Format the response with citations
+
+            const relevantChunks = [];
+            for (const doc of extractedTexts) {
+                for (const chunk of doc.chunks) {
+                    if (chunk.toLowerCase().includes(question.toLowerCase().split(' ')[0])) {
+                        relevantChunks.push({ text: chunk, source: doc.name });
+                        if (relevantChunks.length >= 3) break;
+                    }
+                }
+            }
+
+            if (relevantChunks.length === 0) {
+                return "I couldn't find relevant information in your study materials to answer that question. Try asking about a different topic or check if your documents contain the necessary information.";
+            }
+
+            // Simulate an AI response
+            const responses = [
+                `Based on your study materials, here's what I found:\n\n +
+                "${relevantChunks[0].text.substring(0, 200)}..."\n\n +
+                This information comes from: ${ relevantChunks[0].source },
+
+                From your documents, I can tell you: \n\n +
+                "${relevantChunks[0].text.substring(0, 150)}..."\n\n +
+                Reference: ${ relevantChunks[0].source },
+
+                Here's the relevant information from your materials:\n\n +
+                "${relevantChunks[0].text.substring(0, 180)}..."\n\n +
+                Source: ${ relevantChunks[0].source }`
+            ];
+
+            return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        function addChatMessage(sender, message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message rounded-lg p-4 fade-in ${sender === 'user'
+                    ? 'bg-indigo-600 text-white ml-auto'
+                    : 'bg-gray-100 text-gray-800'
+                }`;
+
+            messageDiv.innerHTML = message;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            return messageDiv;
+        }
+    </script>
+</body>
+
+</html>
