@@ -37,6 +37,7 @@ def extract_text(path):
     with fitz.open(path) as doc:  # this will fail if file is not a valid PDF
         for page in doc:
             text += page.get_text()
+    print(text)
     return text
 
 
@@ -126,9 +127,8 @@ def ask():
 
     try:
         completion = client.chat.completions.create(
-            model="openai/gpt-oss-20b",
-            messages=messages,
-            max_tokens=256,
+            model="openai/gpt-oss-120b",
+            messages=messages
         )
         answer = completion.choices[0].message["content"]
         # After getting the raw answer
